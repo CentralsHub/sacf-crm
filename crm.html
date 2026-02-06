@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sell Any Car Fast CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="components/floating-sidebar.js"></script>
+
+  <!-- PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    body { font-family: 'Poppins', sans-serif; }
+
+    input, select, textarea {
+      background-color: rgba(31,41,55,.6);
+      border: 1px solid #374151;
+      color: #f3f4f6;
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:#22d3ee; }
+    button i { pointer-events:none; }
+
+    /* Kanban columns */
+    .kanban-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .kanban-column {
+      background: rgba(17,24,39,0.4);
+      border: 1px solid rgba(55,65,81,0.6);
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 500px;
+    }
+
+    .kanban-header {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kanban-header.todo { border-color: #6366f1; color: #6366f1; }
+    .kanban-header.offer { border-color: #f59e0b; color: #f59e0b; }
+    .kanban-header.declined { border-color: #ef4444; color: #ef4444; }
+    .kanban-header.purchased { border-color: #22c55e; color: #22c55e; }
+
+    .lead-card {
+      background: rgba(31,41,55,0.6);
+      border: 1px solid #374151;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .lead-card:hover {
+      background: rgba(31,41,55,0.9);
+      border-color: #22d3ee;
+      transform: translateY(-2px);
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #f3f4f6;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(55,65,81,0.5);
+    }
+
+    .card-actions button {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      flex: 1;
+    }
+
+    /* Stats cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: rgba(17,24,39,0.4);
+      border: 1px solid rgba(55,65,81,0.6);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #22d3ee;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    /* Photo gallery */
+    .gallery-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 60; display:flex; align-items:center; justify-content:center; padding: 16px; }
+    .gallery-card { max-width: 1000px; width: 100%; background: rgba(17,24,39,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; overflow:hidden; }
+    .gallery-main { width:100%; max-height: 70vh; object-fit: contain; background: rgba(0,0,0,0.2); display:block; }
+    .gallery-thumbs { display:flex; gap:10px; overflow-x:auto; padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .gallery-thumb { width: 92px; height: 64px; object-fit: cover; border-radius: 10px; border: 2px solid transparent; cursor:pointer; opacity: 0.9; }
+    .gallery-thumb.active { border-color: #22d3ee; opacity: 1; }
+
+    @media (max-width: 1400px) {
+      .kanban-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .kanban-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body class="text-gray-100 min-h-screen">
+  <!-- Floating particles -->
+  <div class="floating-particles">
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+    <div class="particle"></div><div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  </div>
+
+  <!-- Floating Sidebar -->
+  <!-- <floating-sidebar current-page="crm"></floating-sidebar> -->
+
+  <div class="container mx-auto px-4 py-4">
+    <h1 class="text-2xl font-semibold mb-4">Sell Any Car Fast CRM</h1>
+
+    <!-- Performance Stats -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total Leads</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statTodo">0</div>
+        <div class="stat-label">To Do</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statOffers">0</div>
+        <div class="stat-label">Offers Made</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statPurchased">0</div>
+        <div class="stat-label">Purchased</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statConversion">0%</div>
+        <div class="stat-label">Conversion Rate</div>
+      </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-container">
+      <!-- To Do Column -->
+      <div class="kanban-column">
+        <div class="kanban-header todo">
+          <span>To Do</span>
+          <span class="text-sm" id="countTodo">0</span>
+        </div>
+        <div id="columnTodo"></div>
+      </div>
+
+      <!-- Offer Made Column -->
+      <div class="kanban-column">
+        <div class="kanban-header offer">
+          <span>Offer Made</span>
+          <span class="text-sm" id="countOffer">0</span>
+        </div>
+        <div id="columnOffer"></div>
+      </div>
+
+      <!-- Declined Column -->
+      <div class="kanban-column">
+        <div class="kanban-header declined">
+          <span>Declined</span>
+          <span class="text-sm" id="countDeclined">0</span>
+        </div>
+        <div id="columnDeclined"></div>
+      </div>
+
+      <!-- Purchased Column -->
+      <div class="kanban-column">
+        <div class="kanban-header purchased">
+          <span>Purchased</span>
+          <span class="text-sm" id="countPurchased">0</span>
+        </div>
+        <div id="columnPurchased"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lead modal -->
+  <div id="leadModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div class="bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h2 id="modalTitle" class="text-2xl font-semibold"></h2>
+          <p id="modalSub" class="text-sm text-gray-400 mt-1"></p>
+        </div>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 space-y-3" id="modalBody"></div>
+
+        <div class="space-y-3">
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Status</h3>
+            <select id="modalStatus" class="w-full">
+              <option>To Do</option>
+              <option>Offer Made</option>
+              <option>Declined</option>
+              <option>Purchased</option>
+            </select>
+            <button id="modalSaveStatus" class="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold">Update Status</button>
+          </div>
+
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Vehicle Details</h3>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Year</div>
+                <input id="modalYear" type="text" class="w-full" />
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Make</div>
+                <input id="modalMake" type="text" class="w-full" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Model</div>
+                <input id="modalModel" type="text" class="w-full" />
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Badge</div>
+                <input id="modalBadge" type="text" class="w-full" />
+              </div>
+            </div>
+            <button id="modalSaveVehicle" class="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold">Save Vehicle Details</button>
+          </div>
+
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Pricing</h3>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Offer</div>
+                <input id="modalOffer" type="number" class="w-full" />
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Counter</div>
+                <input id="modalCounter" type="number" class="w-full" />
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-1">Est retail</div>
+                <input id="modalRetail" type="number" class="w-full" />
+              </div>
+            </div>
+            <button id="modalSavePricing" class="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold">Save pricing</button>
+          </div>
+
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Notes</h3>
+            <textarea id="modalNotes" rows="3" class="w-full resize-none"></textarea>
+            <button id="modalSaveNotes" class="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold">Save notes</button>
+          </div>
+
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Exports</h3>
+            <div class="grid grid-cols-1 gap-2">
+              <button id="btnPdfFull" class="bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg font-semibold">Generate PDF full</button>
+              <button id="btnPdfSafe" class="bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg font-semibold">Generate PDF safe</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Safe PDF removes name, email, phone</p>
+          </div>
+
+          <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+            <h3 class="font-semibold mb-3">Messages</h3>
+            <div class="grid grid-cols-1 gap-2">
+              <button id="btnCopyHtmlEmail" class="bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold">Copy HTML Email</button>
+              <button id="btnSparkEmail" class="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-semibold">Open Spark (plain text)</button>
+              <button id="btnCopySms" class="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold">Copy SMS</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">Copy HTML then paste in Spark</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div id="gallery" class="hidden gallery-overlay">
+    <div class="gallery-card">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <div class="text-sm text-gray-200 font-semibold" id="galleryTitle">Photos</div>
+        <button class="text-gray-300 hover:text-white" onclick="closeGallery()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <img id="galleryMain" class="gallery-main" src="" alt="Photo">
+      <div id="galleryThumbs" class="gallery-thumbs"></div>
+    </div>
+  </div>
+
+<script>
+const API_KEY="6eff91999757e6e8e604ee539547a7fa";
+const FORM_ID="250941024894055";
+const modal=document.getElementById("leadModal");
+const modalTitle=document.getElementById("modalTitle");
+const modalSub=document.getElementById("modalSub");
+const modalBody=document.getElementById("modalBody");
+
+let leads=[];
+
+const statuses=JSON.parse(localStorage.getItem("statuses")||"{}");
+const offers=JSON.parse(localStorage.getItem("offers")||"{}");
+const counterOffers=JSON.parse(localStorage.getItem("counterOffers")||"{}");
+const estRetails=JSON.parse(localStorage.getItem("estRetails")||"{}");
+const notes=JSON.parse(localStorage.getItem("notes")||"{}");
+const cachedLeads=JSON.parse(localStorage.getItem("cachedLeads")||"{}");
+
+// Vehicle details edits
+const vehicleYears=JSON.parse(localStorage.getItem("vehicleYears")||"{}");
+const vehicleMakes=JSON.parse(localStorage.getItem("vehicleMakes")||"{}");
+const vehicleModels=JSON.parse(localStorage.getItem("vehicleModels")||"{}");
+const vehicleBadges=JSON.parse(localStorage.getItem("vehicleBadges")||"{}");
+
+const postcodeMap={
+  "4000":"Brisbane City","4005":"New Farm","4006":"Fortitude Valley","4101":"South Brisbane","4102":"Woolloongabba",
+  "4151":"Coorparoo","4152":"Greenslopes","4170":"Cannon Hill","4171":"Bulimba","4178":"Wynnum","4179":"Wynnum West",
+  "4217":"Surfers Paradise","4300":"Springfield","4350":"Toowoomba","4551":"Caloundra","4560":"Nambour",
+  "4567":"Noosa Heads","4680":"Gladstone","4701":"Rockhampton","4810":"Townsville","4870":"Cairns"
+};
+
+function toTitle(str){return str?str.replace(/\b\w/g,c=>c.toUpperCase()):"";}
+
+// Format number with thousands comma
+function formatPrice(num){
+  if(!num) return "";
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// Convert Jotform UTC timestamp to Brisbane local
+function brisbaneDate(isoString) {
+  const utc = new Date(isoString.endsWith("Z") ? isoString : isoString + "Z");
+  return new Date(utc.getTime() + 5 * 60 * 60 * 1000);
+}
+function formatDateBrisbane(date) {
+  return date.toLocaleString("en-AU", {
+    timeZone: "Australia/Brisbane",
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function formatDateShort(date) {
+  return date.toLocaleString("en-AU", {
+    timeZone: "Australia/Brisbane",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function persistAll(){
+  localStorage.setItem("statuses",JSON.stringify(statuses));
+  localStorage.setItem("offers",JSON.stringify(offers));
+  localStorage.setItem("counterOffers",JSON.stringify(counterOffers));
+  localStorage.setItem("estRetails",JSON.stringify(estRetails));
+  localStorage.setItem("notes",JSON.stringify(notes));
+  localStorage.setItem("cachedLeads",JSON.stringify(cachedLeads));
+  localStorage.setItem("vehicleYears",JSON.stringify(vehicleYears));
+  localStorage.setItem("vehicleMakes",JSON.stringify(vehicleMakes));
+  localStorage.setItem("vehicleModels",JSON.stringify(vehicleModels));
+  localStorage.setItem("vehicleBadges",JSON.stringify(vehicleBadges));
+}
+
+async function fetchLeads(){
+  const res=await fetch(`https://api.jotform.com/form/${FORM_ID}/submissions?apiKey=${API_KEY}`);
+  const data=await res.json();
+  const cutoff=new Date("2025-11-01T00:00:00+10:00");
+
+  // Parse new leads from Jotform
+  const newLeads = data.content.map(s=>{
+    const a=s.answers; const get=n=>Object.values(a).find(x=>x.name===n)?.answer||"";
+    const sub=brisbaneDate(s.created_at);
+    if(sub<cutoff)return null;
+    const id=s.id;
+
+    // Photos safe parse
+    let photos=[];
+    const rawPhoto=get("photoupload");
+    if(Array.isArray(rawPhoto))photos=rawPhoto;
+    else if(typeof rawPhoto==="object"&&rawPhoto!==null)photos=Object.values(rawPhoto);
+    else if(typeof rawPhoto==="string")photos=rawPhoto.split(",").map(x=>x.trim()).filter(Boolean);
+
+    let suburb=get("suburb");
+    if(/^\d{4}$/.test(suburb)){suburb=postcodeMap[suburb]||suburb;}
+
+    return{
+      id,
+      name:`${get("firstName")} ${get("surname")}`.trim(),
+      car:`${get("year")} ${get("make")} ${get("model")} ${get("badge")}`.trim(),
+      year:get("year"),
+      make:get("make"),
+      model:get("model"),
+      badge:get("badge"),
+      transmission:get("transmission"),
+      odometer:get("odometer"),
+      location:toTitle(suburb)+(get("state")?", "+get("state"):""),
+      rego:(get("registration")||"").toUpperCase(),
+      regoState:get("year26")||"",
+      paintCondition:get("Paint Condition")||get("input_19")||get("19")||get("#input_19")||get("paintCondition")||"",
+      mechanicalCondition:get("Mechanical Condition")||get("Mech Condition")||get("mechCondition")||get("input_44")||get("44")||get("#input_44")||get("mechanicalCondition")||get("mechanical")||"",
+      offer:offers[id]||"",
+      counter:counterOffers[id]||"",
+      estRetail:estRetails[id]||"",
+      status:statuses[id]||"To Do",
+      note:notes[id]||"",
+      phone:get("mobile"),
+      email:get("email"),
+      photos,
+      pdf:get("pdf-link")||"",
+      comments:get("comments")||"",
+      submitted:sub
+    };
+  }).filter(Boolean);
+
+  // Cache new leads (merge with existing cache)
+  newLeads.forEach(lead => {
+    cachedLeads[lead.id] = lead;
+  });
+  persistAll();
+
+  // Return all cached leads (including previously cached ones that may have been deleted from Jotform)
+  return Object.values(cachedLeads).map(lead => {
+    const year = vehicleYears[lead.id] || lead.year;
+    const make = vehicleMakes[lead.id] || lead.make;
+    const model = vehicleModels[lead.id] || lead.model;
+    const badge = vehicleBadges[lead.id] || lead.badge;
+    return {
+      ...lead,
+      year,
+      make,
+      model,
+      badge,
+      car: `${year} ${make} ${model} ${badge}`.trim(),
+      offer: offers[lead.id] || "",
+      counter: counterOffers[lead.id] || "",
+      estRetail: estRetails[lead.id] || "",
+      status: statuses[lead.id] || "To Do",
+      note: notes[lead.id] || ""
+    };
+  });
+}
+
+function buildLeadCard(l) {
+  const photoHint = l.photos.length ? `<i class="fa-solid fa-camera text-cyan-400 ml-1" title="${l.photos.length} photos"></i>` : "";
+
+  // Email button split: copy HTML (left) and open blank email (right)
+  const emailButtons = l.email ? `
+    <div style="display: flex; gap: 2px; flex: 1;">
+      <button class="bg-purple-600 hover:bg-purple-700" style="flex: 1; padding: 4px;" onclick="copyHtmlEmailSilent('${l.id}')" title="Copy HTML email"><i class="fa-solid fa-copy"></i></button>
+      <button class="bg-blue-600 hover:bg-blue-700" style="flex: 1; padding: 4px;" onclick="openBlankEmail('${l.email}')" title="Open email"><i class="fa-solid fa-envelope"></i></button>
+    </div>
+  ` : "";
+
+  return `
+    <div class="lead-card" onclick="openModal('${l.id}')">
+      <div class="card-title">${l.name || "Unnamed"}${photoHint}</div>
+      <div class="card-subtitle">${l.car}</div>
+      <div class="card-row">
+        <span class="text-gray-400">Location:</span>
+        <span>${l.location || "N/A"}</span>
+      </div>
+      <div class="card-row">
+        <span class="text-gray-400">Rego:</span>
+        <span>${l.rego} ${l.regoState}</span>
+      </div>
+      ${l.odometer ? `<div class="card-row"><span class="text-gray-400">Odometer:</span><span>${formatPrice(l.odometer)} km</span></div>` : ""}
+      <div class="card-row">
+        <span class="text-gray-400">Submitted:</span>
+        <span>${formatDateShort(l.submitted)}</span>
+      </div>
+      ${l.offer ? `<div class="card-row"><span class="text-gray-400">Offer:</span><span class="text-cyan-300">$${formatPrice(l.offer)}</span></div>` : ""}
+      ${l.counter ? `<div class="card-row"><span class="text-gray-400">Counter:</span><span class="text-orange-300">$${formatPrice(l.counter)}</span></div>` : ""}
+      ${l.estRetail ? `<div class="card-row"><span class="text-gray-400">Est retail:</span><span>$${formatPrice(l.estRetail)}</span></div>` : ""}
+      <div class="card-actions" onclick="event.stopPropagation()">
+        ${l.phone ? `<button class="bg-cyan-600 hover:bg-cyan-700" onclick="callLead('${l.phone}')"><i class="fa-solid fa-phone"></i></button>` : ""}
+        ${l.phone ? `<button class="bg-green-600 hover:bg-green-700" onclick="textLead('${l.phone}')"><i class="fa-solid fa-comment"></i></button>` : ""}
+        ${emailButtons}
+        <button class="bg-red-600 hover:bg-red-700" onclick="deleteLead('${l.id}')"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>
+  `;
+}
+
+function renderKanban(list) {
+  const columns = {
+    "To Do": document.getElementById("columnTodo"),
+    "Offer Made": document.getElementById("columnOffer"),
+    "Declined": document.getElementById("columnDeclined"),
+    "Purchased": document.getElementById("columnPurchased")
+  };
+
+  // Clear all columns
+  Object.values(columns).forEach(col => col.innerHTML = "");
+
+  // Sort by submission date (newest first)
+  list.sort((a,b) => b.submitted - a.submitted);
+
+  // Populate columns
+  list.forEach(l => {
+    const status = l.status || "To Do";
+    if (columns[status]) {
+      columns[status].innerHTML += buildLeadCard(l);
+    }
+  });
+
+  // Update counts
+  document.getElementById("countTodo").textContent = list.filter(l => (l.status||"To Do") === "To Do").length;
+  document.getElementById("countOffer").textContent = list.filter(l => l.status === "Offer Made").length;
+  document.getElementById("countDeclined").textContent = list.filter(l => l.status === "Declined").length;
+  document.getElementById("countPurchased").textContent = list.filter(l => l.status === "Purchased").length;
+
+  // Update stats
+  const total = list.length;
+  const purchased = list.filter(l => l.status === "Purchased").length;
+  const conversion = total > 0 ? Math.round((purchased / total) * 100) : 0;
+
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statTodo").textContent = list.filter(l => (l.status||"To Do") === "To Do").length;
+  document.getElementById("statOffers").textContent = list.filter(l => l.status === "Offer Made").length;
+  document.getElementById("statPurchased").textContent = purchased;
+  document.getElementById("statConversion").textContent = conversion + "%";
+}
+
+function deleteLead(id){
+  if(!confirm("Remove this lead from CRM view permanently?"))return;
+  leads=leads.filter(l=>l.id!==id);
+  delete statuses[id]; delete offers[id]; delete counterOffers[id]; delete estRetails[id]; delete notes[id];
+  delete cachedLeads[id];
+  delete vehicleYears[id]; delete vehicleMakes[id]; delete vehicleModels[id]; delete vehicleBadges[id];
+  persistAll();
+  renderKanban(leads);
+}
+
+function openModal(id){
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+
+  modal.classList.remove("hidden");
+  modalTitle.textContent=l.name||"Lead";
+  modalSub.textContent=`${l.car}${l.rego?` • ${l.rego}`:""}`;
+
+  modalBody.innerHTML=`
+    <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4 space-y-2">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <p><span class='text-gray-400'>Phone:</span> ${l.phone||"Not provided"}</p>
+        <p><span class='text-gray-400'>Email:</span> ${l.email||"Not provided"}</p>
+        <p><span class='text-gray-400'>Location:</span> ${l.location||""}</p>
+        <p><span class='text-gray-400'>Submitted:</span> ${formatDateBrisbane(l.submitted)}</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-gray-700">
+        <p><span class='text-gray-400'>Transmission:</span> ${l.transmission||"Not provided"}</p>
+        <p><span class='text-gray-400'>Odometer:</span> ${l.odometer?formatPrice(l.odometer)+" km":"Not provided"}</p>
+        <p><span class='text-gray-400'>Rego:</span> ${l.rego||""} ${l.regoState||""}</p>
+        <p><span class='text-gray-400'>Status:</span> ${l.status}</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-gray-700">
+        <p><span class='text-gray-400'>Paint Condition:</span> ${l.paintCondition||"Not provided"}</p>
+        <p><span class='text-gray-400'>Mechanical Condition:</span> ${l.mechanicalCondition||"Not provided"}</p>
+      </div>
+    </div>
+
+    ${l.photos.length?`
+      <div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Photos</h3>
+          <button class="text-sm text-cyan-300 hover:text-cyan-200" onclick='openGallery("${l.id}")'>Open gallery</button>
+        </div>
+        <img src="${l.photos[0]}" class="rounded-lg max-h-72 mx-auto mt-3 cursor-pointer" onclick='openGallery("${l.id}")' alt="Vehicle photo">
+        <p class="text-xs text-gray-400 mt-2">${l.photos.length} photo${l.photos.length===1?"":"s"}</p>
+      </div>`:""}
+
+    ${l.comments?`<div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4"><h3 class="font-semibold mb-2">Comments</h3><p class="text-sm text-gray-200 whitespace-pre-wrap">${escapeHtml(l.comments)}</p></div>`:""}
+
+    ${l.pdf?`<div class="bg-gray-900/40 border border-gray-700 rounded-xl p-4"><a href='${l.pdf}' target='_blank' class='text-cyan-300 hover:text-cyan-200 underline'>Open Jotform PDF</a></div>`:""}
+  `;
+
+  // Status control
+  document.getElementById("modalStatus").value = l.status || "To Do";
+  document.getElementById("modalSaveStatus").onclick = () => {
+    const newStatus = document.getElementById("modalStatus").value;
+    statuses[l.id] = newStatus;
+    persistAll();
+    const updated = leads.map(x => x.id === l.id ? {...x, status: newStatus} : x);
+    leads = updated;
+    renderKanban(leads);
+    closeModal();
+  };
+
+  // Vehicle details control
+  document.getElementById("modalYear").value = l.year || "";
+  document.getElementById("modalMake").value = l.make || "";
+  document.getElementById("modalModel").value = l.model || "";
+  document.getElementById("modalBadge").value = l.badge || "";
+  document.getElementById("modalSaveVehicle").onclick = () => {
+    vehicleYears[l.id] = document.getElementById("modalYear").value || "";
+    vehicleMakes[l.id] = document.getElementById("modalMake").value || "";
+    vehicleModels[l.id] = document.getElementById("modalModel").value || "";
+    vehicleBadges[l.id] = document.getElementById("modalBadge").value || "";
+    persistAll();
+    const year = vehicleYears[l.id] || l.year;
+    const make = vehicleMakes[l.id] || l.make;
+    const model = vehicleModels[l.id] || l.model;
+    const badge = vehicleBadges[l.id] || l.badge;
+    const car = `${year} ${make} ${model} ${badge}`.trim();
+    const updated = leads.map(x => x.id === l.id ? {...x, year, make, model, badge, car} : x);
+    leads = updated;
+    renderKanban(leads);
+    // Update modal subtitle
+    modalSub.textContent = `${car}${l.rego?` • ${l.rego}`:""}`;
+  };
+
+  // Pricing controls
+  document.getElementById("modalOffer").value = offers[l.id] || "";
+  document.getElementById("modalCounter").value = counterOffers[l.id] || "";
+  document.getElementById("modalRetail").value = estRetails[l.id] || "";
+
+  document.getElementById("modalSavePricing").onclick = () => {
+    offers[l.id] = document.getElementById("modalOffer").value || "";
+    counterOffers[l.id] = document.getElementById("modalCounter").value || "";
+    estRetails[l.id] = document.getElementById("modalRetail").value || "";
+    persistAll();
+    const updated = leads.map(x=> x.id===l.id ? {...x, offer:offers[l.id], counter:counterOffers[l.id], estRetail:estRetails[l.id]} : x);
+    leads = updated;
+    renderKanban(leads);
+  };
+
+  // Notes control
+  document.getElementById("modalNotes").value = notes[l.id] || "";
+  document.getElementById("modalSaveNotes").onclick = () => {
+    notes[l.id] = document.getElementById("modalNotes").value || "";
+    persistAll();
+    const updated = leads.map(x=> x.id===l.id ? {...x, note:notes[l.id]} : x);
+    leads = updated;
+  };
+
+  document.getElementById("btnPdfFull").onclick = () => generatePdf(l, false);
+  document.getElementById("btnPdfSafe").onclick = () => generatePdf(l, true);
+
+  document.getElementById("btnCopyHtmlEmail").onclick = () => copyHtmlEmail(l);
+  document.getElementById("btnCopySms").onclick = () => copySms(l);
+
+  document.getElementById("btnSparkEmail").onclick = () => openSparkEmail(l);
+  window.currentLead = l;
+}
+
+function closeModal(){ modal.classList.add("hidden"); window.currentLead = null; }
+
+function escapeHtml(s){
+  if(!s) return "";
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// Gallery
+const gallery=document.getElementById("gallery");
+const galleryMain=document.getElementById("galleryMain");
+const galleryThumbs=document.getElementById("galleryThumbs");
+const galleryTitle=document.getElementById("galleryTitle");
+
+function openGallery(leadId){
+  const l = leads.find(x=>x.id===leadId);
+  if(!l || !l.photos || !l.photos.length) return;
+  gallery.classList.remove("hidden");
+  galleryTitle.textContent = `Photos (${l.photos.length})`;
+  galleryMain.src = l.photos[0];
+  galleryThumbs.innerHTML = l.photos.map((src, idx)=>`
+    <img src="${src}" class="gallery-thumb ${idx===0?"active":""}" onclick="setGalleryPhoto('${leadId}',${idx})" alt="Thumb">
+  `).join("");
+  window.galleryLeadId = leadId;
+}
+function setGalleryPhoto(leadId, idx){
+  const l = leads.find(x=>x.id===leadId);
+  if(!l || !l.photos || !l.photos.length) return;
+  galleryMain.src = l.photos[idx];
+  [...galleryThumbs.querySelectorAll(".gallery-thumb")].forEach((el,i)=>el.classList.toggle("active", i===idx));
+}
+function closeGallery(){ gallery.classList.add("hidden"); window.galleryLeadId = null; }
+
+window.callLead=p=>p&&window.open(`tel:${p}`);
+window.textLead=p=>p&&window.open(`sms:${p}`);
+
+// Spark email
+function openLeadEmail(id){
+  const l = leads.find(x=>x.id===id);
+  if(!l) return;
+  openSparkEmail(l);
+}
+
+function buildEmailHtml(l){
+  const offerVal = offers[l.id] ? `$${formatPrice(offers[l.id])}` : "$";
+  const year = l.year || "";
+  const make = l.make || "";
+  const model = l.model || "";
+  const firstName = l.name.split(' ')[0] || l.name;
+
+  let html = EMAIL_TEMPLATE;
+  html = html.replace(/\{YEAR\}/g, escapeHtml(year));
+  html = html.replace(/\{MAKE\}/g, escapeHtml(make));
+  html = html.replace(/\{MODEL\}/g, escapeHtml(model));
+  html = html.replace(/\{NAME\}/g, escapeHtml(firstName));
+  html = html.replace("Hi ,", `Hi ${escapeHtml(firstName)},`);
+  html = html.replace("Our Offer: $", `Our Offer: ${offerVal}`);
+  return html;
+}
+
+const EMAIL_TEMPLATE = `<div data-spark-custom-html="true">
+    <div style="margin: 0 auto; max-width: 700px; background: #fff; font-family: Roboto,Arial,sans-serif; color: #234; line-height: 1.5; width: 110%;">
+        <!-- HERO IMAGE -->
+        <div style="width: 100%; text-align: center;">
+            <img style="width: 100%; max-width: 700px; display: block; border-radius: 12px; margin: 0 auto; border: 0; max-height: 280px; object-fit: cover; object-position: center bottom;" src="https://lirp.cdn-website.com/f0ed3c59/dms3rep/multi/opt/sell-my-car-brisbane-1920w.png" alt="Vehicle Purchase Offer">
+        </div>
+        <!-- HEADER -->
+        <div style="background: #387cc2; text-align: center; color: #fff; padding: 40px 20px; border-radius: 12px;">
+            <h1 style="font-size: 22px; margin: 0px 0px 10px; font-weight: 900; text-align: left;">Hi ,</h1>
+            <h2 style="font-size: 18px; margin: 0px 0px 10px; font-weight: 900; text-align: left;">Great news! We're ready to make you an offer for your {YEAR} {MAKE} {MODEL}.</h2>
+            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                <h1 style="font-size: 28px; margin: 0; font-weight: 900; color: #fff;">Our Offer: $</h1>
+                <p style="font-size: 16px; margin: 10px 0 0; opacity: 0.9;">*Subject to final inspection</p>
+            </div>
+        </div>
+        <!-- OFFER DETAILS -->
+        <div style="background: #ffffff; text-align: center; padding: 30px 20px;">
+            <h2 style="font-size: 20px; color: #387cc2; font-weight: 800; margin-bottom: 20px;">What's Included in This Offer</h2>
+            <table style="margin: 0 auto; text-align: center;" width="100%" cellspacing="0" cellpadding="0">
+                <tbody>
+                    <tr>
+                        <td style="padding: 12px;">
+                            <div style="background: #eef3f8; padding: 16px; border-radius: 12px; color: #387cc2; font-weight: bold;">✔ No RWC Required</div>
+                        </td>
+                        <td style="padding: 12px;">
+                            <div style="background: #eef3f8; padding: 16px; border-radius: 12px; color: #387cc2; font-weight: bold;">💸 Same Day Payment</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px;">
+                            <div style="background: #eef3f8; padding: 16px; border-radius: 12px; color: #387cc2; font-weight: bold;">📄 All Paperwork Handled</div>
+                        </td>
+                        <td style="padding: 12px;">
+                            <div style="background: #eef3f8; padding: 16px; border-radius: 12px; color: #387cc2; font-weight: bold;">🔒 Secure Transaction</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- NEXT STEPS -->
+        <div style="background: #f8f9fa; padding: 30px 20px; text-align: center;">
+            <h2 style="font-size: 20px; color: #387cc2; font-weight: 800; margin-bottom: 20px;">Ready to Accept? Here's What Happens Next</h2>
+            <div style="text-align: left; max-width: 500px; margin: 0 auto;">
+                <div style="display: flex; align-items: center; margin: 15px 0; padding: 10px; background: white; border-radius: 8px;">
+                    <div style="background: #387cc2; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-right: 15px; flex-shrink: 0;">1</div>
+                    <div style="font-size: 14px; color: #555;">Call, reply or text to confirm your acceptance</div>
+                </div>
+                <div style="display: flex; align-items: center; margin: 15px 0; padding: 10px; background: white; border-radius: 8px;">
+                    <div style="background: #387cc2; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-right: 15px; flex-shrink: 0;">2</div>
+                    <div style="font-size: 14px; color: #555;">We'll schedule a convenient inspection time if required</div>
+                </div>
+                <div style="display: flex; align-items: center; margin: 15px 0; padding: 10px; background: white; border-radius: 8px;">
+                    <div style="background: #387cc2; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-right: 15px; flex-shrink: 0;">3</div>
+                    <div style="font-size: 14px; color: #555;">Paperwork, payment &amp; pick up</div>
+                </div>
+            </div>
+        </div>
+        <!-- COUNTER OFFER CALLOUT -->
+        <div style="background: #387cc2; padding: 25px 20px; margin: 30px auto; border-radius: 12px; text-align: center; color: #fff; max-width: 600px;">
+            <h2 style="font-size: 18px; font-weight: 800; margin: 0 0 10px;">Not quite what you had in mind?</h2>
+            <p style="font-size: 15px; margin: 0; line-height: 1.6;">
+                We'd still love to hear what you were hoping for.
+                Just hit <strong>Reply</strong> with the figure you had in mind,
+                and we'll do our best to work with you.
+            </p>
+        </div>
+        <div style="padding: 30px 20px; background: #fff; text-align: center;">
+            <a style="font-family: Roboto, Arial, sans-serif; font-size: 18px; text-decoration: none; text-align: center; padding: 15px 30px; color: #fff; display: inline-block; border-radius: 8px; background: #387cc2; margin: 10px; font-weight: bold;" href="tel:0413829364">Call Now: 0413 829 364</a>
+            <p style="font-size: 14px; color: #666; margin: 20px 0 0;">Or simply reply to this email</p>
+        </div>
+        <!-- CONTACT INFO -->
+        <div style="background: #e9ecf1; padding: 25px 20px; border-radius: 14px; text-align: center; font-size: 13px; color: #444;">
+            <p style="margin: 0 0 10px; font-size: 16px; font-weight: bold; color: #387cc2;">Mitchell Down</p>
+            <p style="margin: 0 0 10px; font-size: 14px; font-weight: bold; color: #387cc2;">Managing Director</p>
+            <p style="margin: 5px 0;">📞 <b>0413 829 364</b></p>
+            <p style="margin: 5px 0;">📧 <strong>hello@sellanycarfast.com.au</strong></p>
+            <div style="margin: 20px 0; text-align:center; font-size:0;">
+                <!-- SOCIALS ETC -->
+                <div style="margin: 20px 0; text-align:center;">
+                    <div style="display:flex; justify-content:center; align-items:center; gap:14px;">
+                        <a href="https://www.facebook.com/sellanycarfast" target="_blank" rel="noopener noreferrer">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook" style="width:24px; height:24px; display:block;">
+                        </a>
+                        <a href="https://www.instagram.com/sellanycarfast" target="_blank" rel="noopener noreferrer">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram" style="width:24px; height:24px; display:block;">
+                        </a>
+                        <a href="https://x.com/sellanycarfast" target="_blank" rel="noopener noreferrer">
+                            <img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/x.svg" alt="X" style="width:20px; height:20px; display:block;">
+                        </a>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: #888; margin: 15px 0 0;">© Sell Any Car Fast 2025</p>
+                <p style="font-size: 11px; color: #999; margin: 5px 0 0;">DLN 4682230 | ABN 69 666 330 829</p>
+            </div>
+        </div>
+    </div>
+</div>`;
+
+function openSparkEmail(l){
+  const to = l.email || "";
+  const subject = "💰 Your offer from Sell Any Car Fast";
+  const bodyText = buildPlainEmail(l);
+
+  // Use mailto - Spark will intercept if it's the default email client
+  const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+
+  window.location.href = mailtoUrl;
+}
+
+function buildPlainEmail(l){
+  const offerVal = offers[l.id] || "";
+  const firstName = l.name.split(' ')[0] || l.name;
+  const lines = [];
+  lines.push(`Hi ${firstName},`);
+  lines.push("");
+  lines.push(`Great news! We're ready to make you an offer for your ${l.year} ${l.make} ${l.model}.`);
+  lines.push("");
+  if(offerVal) {
+    lines.push(`Our Offer: $${formatPrice(offerVal)}`);
+    lines.push("*Subject to final inspection");
+    lines.push("");
+  }
+  lines.push("What's Included:");
+  lines.push("✔ No RWC Required");
+  lines.push("💸 Same Day Payment");
+  lines.push("📄 All Paperwork Handled");
+  lines.push("🔒 Secure Transaction");
+  lines.push("");
+  lines.push("Ready to accept? Just reply to this email or give me a call at 0413 829 364.");
+  lines.push("");
+  lines.push("Thanks,");
+  lines.push("Mitchell Down");
+  lines.push("Managing Director");
+  lines.push("Sell Any Car Fast");
+  lines.push("📞 0413 829 364");
+  lines.push("📧 hello@sellanycarfast.com.au");
+  return lines.join("\n");
+}
+
+
+// Copy HTML Email as rich content
+async function copyHtmlEmail(l){
+  const html = buildEmailHtml(l);
+
+  try{
+    // Try to copy as rich HTML (so it pastes as formatted content, not code)
+    const blob = new Blob([html], { type: 'text/html' });
+    const clipboardItem = new ClipboardItem({
+      'text/html': blob,
+      'text/plain': new Blob([html], { type: 'text/plain' })
+    });
+    await navigator.clipboard.write([clipboardItem]);
+    alert("HTML email copied! Open Spark and paste (Cmd+V) into the compose window.");
+  }catch(e){
+    // Fallback: create a hidden div, copy from it
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    div.style.position = 'fixed';
+    div.style.left = '-9999px';
+    document.body.appendChild(div);
+
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    document.execCommand('copy');
+    document.body.removeChild(div);
+    alert("HTML email copied! Open Spark and paste (Cmd+V) into the compose window.");
+  }
+}
+
+// Copy HTML Email silently (no alert) - for card buttons
+window.copyHtmlEmailSilent = async function(leadId){
+  const l = leads.find(x => x.id === leadId);
+  if (!l) return;
+
+  const html = buildEmailHtml(l);
+
+  try{
+    const blob = new Blob([html], { type: 'text/html' });
+    const clipboardItem = new ClipboardItem({
+      'text/html': blob,
+      'text/plain': new Blob([html], { type: 'text/plain' })
+    });
+    await navigator.clipboard.write([clipboardItem]);
+  }catch(e){
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    div.style.position = 'fixed';
+    div.style.left = '-9999px';
+    document.body.appendChild(div);
+
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    document.execCommand('copy');
+    document.body.removeChild(div);
+  }
+};
+
+// Open blank email in Spark with subject (no body)
+window.openBlankEmail = function(email){
+  const subject = "💰 Your offer from Sell Any Car Fast";
+  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}`;
+};
+
+// Copy SMS
+async function copySms(l){
+  const offerVal = offers[l.id] || "";
+  const msg = `Hi ${l.name||""} its Mitch from Sell Any Car Fast just checking in on your ${l.car} offer${offerVal?` of ${offerVal}`:""} reply anytime`;
+  try{
+    await navigator.clipboard.writeText(msg);
+    alert("SMS copied");
+  }catch(e){
+    prompt("Copy SMS", msg);
+  }
+}
+
+// PDFs with photos and better formatting
+async function generatePdf(l, safe){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+  const pad = 40;
+  let y = 40;
+  const pageWidth = 595;
+  const pageHeight = 842;
+
+  // Header
+  doc.setFillColor(56, 124, 194); // #387cc2
+  doc.rect(0, 0, pageWidth, 80, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(24);
+  doc.text("Sell Any Car Fast", pad, 35);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text("Vehicle Lead Report", pad, 55);
+
+  y = 110; // Add margin under blue section
+  doc.setTextColor(0, 0, 0);
+
+  // Vehicle title
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(l.car || "Vehicle", pad, y);
+  y += 30;
+
+  // Combined Contact + Vehicle section - ONE CONTINUOUS LIGHT BLUE BACKGROUND
+  const sectionStartY = y;
+  const leftCol = pad + 15;
+  const rightCol = pad + 270;
+
+  // Calculate total height
+  let totalHeight = 20; // Top padding
+
+  if(!safe && (l.name || l.phone || l.email)){
+    totalHeight += 18; // Contact header
+    if(l.name) totalHeight += 18;
+    if(l.phone) totalHeight += 18;
+    if(l.email) totalHeight += 18;
+    totalHeight += 20; // Spacing between sections
+  }
+
+  totalHeight += 18; // Vehicle Details header
+  totalHeight += 18; // Rego/Location
+  totalHeight += 18; // Transmission/Odometer
+  totalHeight += 18; // Paint/Mechanical
+  totalHeight += 20; // Bottom padding
+
+  // Draw ONE continuous light blue background
+  doc.setFillColor(238, 243, 248); // #eef3f8
+  doc.rect(pad, sectionStartY, pageWidth - 2*pad, totalHeight, 'F');
+  doc.setTextColor(0, 0, 0);
+
+  let contentY = sectionStartY + 20;
+
+  // Contact Information (if not safe)
+  if(!safe && (l.name || l.phone || l.email)){
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Contact Information", leftCol, contentY);
+    contentY += 18;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    if(l.name) { doc.text(`Name: ${l.name}`, leftCol, contentY); contentY += 18; }
+    if(l.phone) { doc.text(`Phone: ${l.phone}`, leftCol, contentY); contentY += 18; }
+    if(l.email) { doc.text(`Email: ${l.email}`, leftCol, contentY); contentY += 18; }
+    contentY += 20; // Spacing
+  }
+
+  // Vehicle Details
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Vehicle Details", leftCol, contentY);
+  contentY += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+
+  doc.text(`Rego: ${l.rego||""} ${l.regoState||""}`, leftCol, contentY);
+  doc.text(`Location: ${l.location||"N/A"}`, rightCol, contentY);
+  contentY += 18;
+
+  doc.text(`Transmission: ${l.transmission||"N/A"}`, leftCol, contentY);
+  doc.text(`Odometer: ${l.odometer?formatPrice(l.odometer)+" km":"N/A"}`, rightCol, contentY);
+  contentY += 18;
+
+  if(l.paintCondition) { doc.text(`Paint: ${l.paintCondition}`, leftCol, contentY); }
+  if(l.mechanicalCondition) { doc.text(`Mechanical: ${l.mechanicalCondition}`, rightCol, contentY); }
+
+  y = sectionStartY + totalHeight + 10;
+
+  // Pricing section - LIGHT BLUE
+  if(offers[l.id] || counterOffers[l.id] || estRetails[l.id]){
+    y += 10; // Add spacing
+    doc.setFillColor(238, 243, 248); // #eef3f8 light blue
+    doc.rect(pad, y, pageWidth - 2*pad, 50, 'F');
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Pricing", pad + 15, y + 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+
+    let pricingY = y + 38;
+    const leftCol = pad + 15;
+    if(offers[l.id]) doc.text(`Offer: $${formatPrice(offers[l.id])}`, leftCol, pricingY);
+    if(counterOffers[l.id]) doc.text(`Counter: $${formatPrice(counterOffers[l.id])}`, leftCol + 140, pricingY);
+    if(estRetails[l.id]) doc.text(`Est Retail: $${formatPrice(estRetails[l.id])}`, leftCol + 280, pricingY);
+
+    y += 70;
+  }
+
+  // Comments
+  if(l.comments){
+    y += 10; // Add spacing
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Comments", pad, y);
+    y += 18;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const commentLines = doc.splitTextToSize(l.comments, pageWidth - 2*pad);
+    doc.text(commentLines, pad, y);
+    y += commentLines.length * 13 + 15;
+  }
+
+  // Photos - show ALL photos with ORIGINAL aspect ratio (NO STRETCHING)
+  if(l.photos && l.photos.length > 0){
+    y += 15;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`Photos (${l.photos.length})`, pad, y);
+    y += 25;
+
+    const maxWidth = 235;
+    const photoGap = 20;
+
+    // Track the tallest image in each row for proper spacing
+    let rowMaxHeight = 0;
+
+    for(let i = 0; i < l.photos.length; i++){
+      const col = i % 2;
+      const x = pad + col * (maxWidth + photoGap);
+
+      try {
+        // Load image to get actual dimensions
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            // Verify we got valid dimensions
+            if(img.naturalWidth > 0 && img.naturalHeight > 0) {
+              resolve();
+            } else {
+              reject(new Error('Invalid image dimensions'));
+            }
+          };
+          img.onerror = reject;
+          img.src = l.photos[i];
+        });
+
+        // Use naturalWidth/naturalHeight for accurate aspect ratio
+        const aspectRatio = img.naturalHeight / img.naturalWidth;
+        const scaledHeight = maxWidth * aspectRatio;
+
+        // Resize image for compression - max 600px width for quality/filesize balance
+        const maxCanvasWidth = 600;
+        let canvasWidth = img.naturalWidth;
+        let canvasHeight = img.naturalHeight;
+
+        if(canvasWidth > maxCanvasWidth) {
+          canvasWidth = maxCanvasWidth;
+          canvasHeight = maxCanvasWidth * aspectRatio;
+        }
+
+        // Convert image to data URL via canvas with compression
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+        const imageData = canvas.toDataURL('image/jpeg', 0.65); // Reduced quality for smaller file size
+
+        // Add image with calculated dimensions (NO STRETCHING)
+        doc.addImage(imageData, 'JPEG', x, y, maxWidth, scaledHeight);
+
+        // Track tallest image in this row
+        rowMaxHeight = Math.max(rowMaxHeight, scaledHeight);
+
+        // Move to next row after every 2 photos
+        if(col === 1){
+          y += rowMaxHeight + photoGap;
+          rowMaxHeight = 0; // Reset for next row
+        }
+
+        // Check if we need a new page for next photo
+        if(y + 200 > pageHeight - 50 && i < l.photos.length - 1){
+          doc.addPage();
+          y = 50;
+          rowMaxHeight = 0;
+        }
+      } catch(e) {
+        // If image fails to load, draw a placeholder
+        const placeholderHeight = 150;
+        doc.setDrawColor(200);
+        doc.setLineWidth(1);
+        doc.rect(x, y, maxWidth, placeholderHeight);
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text("Photo unavailable", x + 10, y + placeholderHeight/2);
+        doc.setTextColor(0);
+
+        rowMaxHeight = Math.max(rowMaxHeight, placeholderHeight);
+
+        if(col === 1){
+          y += rowMaxHeight + photoGap;
+          rowMaxHeight = 0;
+        }
+      }
+    }
+
+    // If last row only has 1 photo, add its height
+    if(l.photos.length % 2 === 1){
+      y += rowMaxHeight + photoGap;
+    }
+  }
+
+  const filenameBase = (l.car || "lead").replace(/\s+/g," ").trim().slice(0, 60);
+  const filename = safe ? `${filenameBase} safe.pdf` : `${filenameBase} full.pdf`;
+  doc.save(filename);
+}
+
+(async()=>{
+  leads=await fetchLeads();
+  renderKanban(leads);
+})();
+</script>
+
+</body>
+</html>
