@@ -170,7 +170,17 @@
   <!-- <floating-sidebar current-page="crm"></floating-sidebar> -->
 
   <div class="container mx-auto px-4 py-4">
-    <h1 class="text-2xl font-semibold mb-4">Sell Any Car Fast CRM</h1>
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-semibold">Sell Any Car Fast CRM</h1>
+      <div class="flex items-center gap-4">
+        <div id="syncIndicator" class="text-sm text-gray-400">
+          <i class="fa-solid fa-circle-notch text-gray-500"></i> Not synced
+        </div>
+        <button id="btnGitHubSetup" onclick="setupGitHubToken()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+          <i class="fa-brands fa-github"></i> Setup GitHub Sync
+        </button>
+      </div>
+    </div>
 
     <!-- Performance Stats -->
     <div class="stats-grid" id="statsGrid">
@@ -358,18 +368,210 @@ const modalBody=document.getElementById("modalBody");
 
 let leads=[];
 
-const statuses=JSON.parse(localStorage.getItem("statuses")||"{}");
-const offers=JSON.parse(localStorage.getItem("offers")||"{}");
-const counterOffers=JSON.parse(localStorage.getItem("counterOffers")||"{}");
-const estRetails=JSON.parse(localStorage.getItem("estRetails")||"{}");
-const notes=JSON.parse(localStorage.getItem("notes")||"{}");
-const cachedLeads=JSON.parse(localStorage.getItem("cachedLeads")||"{}");
+// ============ GITHUB STORAGE MODULE ============
+const GITHUB_CONFIG = {
+  owner: 'sllnycrfst',
+  repo: 'sacf-crm',
+  branch: 'main',
+  dataFile: 'crm-data.json'
+};
+
+let GITHUB_TOKEN = localStorage.getItem('github_token') || null;
+let syncStatus = { syncing: false, lastSync: null, error: null };
+
+// GitHub API Helper
+async function githubAPI(endpoint, options = {}) {
+  if (!GITHUB_TOKEN) {
+    throw new Error('GitHub token not set. Click "Setup GitHub Sync" in the UI.');
+  }
+
+  const url = `https://api.github.com${endpoint}`;
+  const headers = {
+    'Authorization': `token ${GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
+  const response = await fetch(url, { ...options, headers });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`GitHub API error: ${response.status} - ${error}`);
+  }
+
+  return response.json();
+}
+
+// Load data from GitHub
+async function loadFromGitHub() {
+  try {
+    updateSyncStatus('loading');
+    const data = await githubAPI(`/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}?ref=${GITHUB_CONFIG.branch}`);
+
+    // Decode base64 content
+    const content = JSON.parse(atob(data.content));
+
+    // Update local data
+    Object.assign(statuses, content.statuses || {});
+    Object.assign(offers, content.offers || {});
+    Object.assign(counterOffers, content.counterOffers || {});
+    Object.assign(estRetails, content.estRetails || {});
+    Object.assign(notes, content.notes || {});
+    Object.assign(cachedLeads, content.cachedLeads || {});
+    Object.assign(vehicleYears, content.vehicleYears || {});
+    Object.assign(vehicleMakes, content.vehicleMakes || {});
+    Object.assign(vehicleModels, content.vehicleModels || {});
+    Object.assign(vehicleBadges, content.vehicleBadges || {});
+    deletedLeads.length = 0;
+    deletedLeads.push(...(content.deletedLeads || []));
+
+    // Also backup to localStorage
+    persistToLocalStorage();
+
+    updateSyncStatus('success');
+    console.log('✅ Data loaded from GitHub');
+    return data.sha; // Return SHA for updates
+  } catch (error) {
+    console.warn('⚠️ Failed to load from GitHub, using localStorage:', error.message);
+    updateSyncStatus('error', error.message);
+    return null;
+  }
+}
+
+// Save data to GitHub
+async function saveToGitHub() {
+  if (!GITHUB_TOKEN) {
+    console.warn('GitHub token not set, skipping sync');
+    return;
+  }
+
+  try {
+    updateSyncStatus('syncing');
+
+    // Get current file SHA (needed for updates)
+    let currentSHA = null;
+    try {
+      const currentFile = await githubAPI(`/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}?ref=${GITHUB_CONFIG.branch}`);
+      currentSHA = currentFile.sha;
+    } catch (e) {
+      console.log('File does not exist yet, will create new');
+    }
+
+    // Prepare data
+    const data = {
+      statuses,
+      offers,
+      counterOffers,
+      estRetails,
+      notes,
+      cachedLeads,
+      deletedLeads,
+      vehicleYears,
+      vehicleMakes,
+      vehicleModels,
+      vehicleBadges,
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Encode to base64
+    const content = btoa(JSON.stringify(data, null, 2));
+
+    // Create or update file
+    const payload = {
+      message: `Update CRM data - ${new Date().toLocaleString()}`,
+      content,
+      branch: GITHUB_CONFIG.branch
+    };
+
+    if (currentSHA) {
+      payload.sha = currentSHA;
+    }
+
+    await githubAPI(`/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataFile}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+
+    updateSyncStatus('success');
+    console.log('✅ Data saved to GitHub');
+  } catch (error) {
+    console.error('❌ Failed to save to GitHub:', error);
+    updateSyncStatus('error', error.message);
+  }
+}
+
+// Update sync status indicator
+function updateSyncStatus(status, errorMsg = null) {
+  syncStatus.syncing = (status === 'syncing' || status === 'loading');
+  syncStatus.error = errorMsg;
+  syncStatus.lastSync = (status === 'success') ? new Date() : syncStatus.lastSync;
+
+  const indicator = document.getElementById('syncIndicator');
+  if (indicator) {
+    if (status === 'syncing') {
+      indicator.innerHTML = '<i class="fa-solid fa-sync fa-spin text-cyan-400"></i> Syncing...';
+    } else if (status === 'loading') {
+      indicator.innerHTML = '<i class="fa-solid fa-download fa-spin text-cyan-400"></i> Loading...';
+    } else if (status === 'success') {
+      const time = syncStatus.lastSync.toLocaleTimeString();
+      indicator.innerHTML = `<i class="fa-solid fa-check text-green-400"></i> Synced ${time}`;
+    } else if (status === 'error') {
+      indicator.innerHTML = `<i class="fa-solid fa-exclamation-triangle text-red-400"></i> Error: ${errorMsg?.substring(0, 30) || 'Unknown'}`;
+    }
+  }
+}
+
+// Setup GitHub token
+function setupGitHubToken() {
+  const token = prompt(`Enter your GitHub Personal Access Token:
+
+1. Go to: https://github.com/settings/tokens/new
+2. Name: "SACF CRM Sync"
+3. Expiration: No expiration (or 1 year)
+4. Select scopes: ✓ repo (all)
+5. Click "Generate token"
+6. Copy and paste below:`);
+
+  if (token && token.trim()) {
+    GITHUB_TOKEN = token.trim();
+    localStorage.setItem('github_token', GITHUB_TOKEN);
+    alert('✅ GitHub token saved! Loading data from GitHub...');
+    loadFromGitHub().then(() => {
+      location.reload();
+    });
+  }
+}
+
+// Persist to localStorage (backup)
+function persistToLocalStorage() {
+  localStorage.setItem("statuses", JSON.stringify(statuses));
+  localStorage.setItem("offers", JSON.stringify(offers));
+  localStorage.setItem("counterOffers", JSON.stringify(counterOffers));
+  localStorage.setItem("estRetails", JSON.stringify(estRetails));
+  localStorage.setItem("notes", JSON.stringify(notes));
+  localStorage.setItem("cachedLeads", JSON.stringify(cachedLeads));
+  localStorage.setItem("deletedLeads", JSON.stringify(deletedLeads));
+  localStorage.setItem("vehicleYears", JSON.stringify(vehicleYears));
+  localStorage.setItem("vehicleMakes", JSON.stringify(vehicleMakes));
+  localStorage.setItem("vehicleModels", JSON.stringify(vehicleModels));
+  localStorage.setItem("vehicleBadges", JSON.stringify(vehicleBadges));
+}
+
+// Initialize data from localStorage first (fallback), then try GitHub
+const statuses = JSON.parse(localStorage.getItem("statuses") || "{}");
+const offers = JSON.parse(localStorage.getItem("offers") || "{}");
+const counterOffers = JSON.parse(localStorage.getItem("counterOffers") || "{}");
+const estRetails = JSON.parse(localStorage.getItem("estRetails") || "{}");
+const notes = JSON.parse(localStorage.getItem("notes") || "{}");
+const cachedLeads = JSON.parse(localStorage.getItem("cachedLeads") || "{}");
+const deletedLeads = JSON.parse(localStorage.getItem("deletedLeads") || "[]");
 
 // Vehicle details edits
-const vehicleYears=JSON.parse(localStorage.getItem("vehicleYears")||"{}");
-const vehicleMakes=JSON.parse(localStorage.getItem("vehicleMakes")||"{}");
-const vehicleModels=JSON.parse(localStorage.getItem("vehicleModels")||"{}");
-const vehicleBadges=JSON.parse(localStorage.getItem("vehicleBadges")||"{}");
+const vehicleYears = JSON.parse(localStorage.getItem("vehicleYears") || "{}");
+const vehicleMakes = JSON.parse(localStorage.getItem("vehicleMakes") || "{}");
+const vehicleModels = JSON.parse(localStorage.getItem("vehicleModels") || "{}");
+const vehicleBadges = JSON.parse(localStorage.getItem("vehicleBadges") || "{}");
 
 const postcodeMap={
   "4000":"Brisbane City","4005":"New Farm","4006":"Fortitude Valley","4101":"South Brisbane","4102":"Woolloongabba",
@@ -412,16 +614,12 @@ function formatDateShort(date) {
 }
 
 function persistAll(){
-  localStorage.setItem("statuses",JSON.stringify(statuses));
-  localStorage.setItem("offers",JSON.stringify(offers));
-  localStorage.setItem("counterOffers",JSON.stringify(counterOffers));
-  localStorage.setItem("estRetails",JSON.stringify(estRetails));
-  localStorage.setItem("notes",JSON.stringify(notes));
-  localStorage.setItem("cachedLeads",JSON.stringify(cachedLeads));
-  localStorage.setItem("vehicleYears",JSON.stringify(vehicleYears));
-  localStorage.setItem("vehicleMakes",JSON.stringify(vehicleMakes));
-  localStorage.setItem("vehicleModels",JSON.stringify(vehicleModels));
-  localStorage.setItem("vehicleBadges",JSON.stringify(vehicleBadges));
+  persistToLocalStorage();
+  // Auto-sync to GitHub (debounced)
+  if (GITHUB_TOKEN) {
+    clearTimeout(window.syncTimeout);
+    window.syncTimeout = setTimeout(() => saveToGitHub(), 2000); // Wait 2s before syncing
+  }
 }
 
 async function fetchLeads(){
@@ -475,14 +673,16 @@ async function fetchLeads(){
     };
   }).filter(Boolean);
 
-  // Cache new leads (merge with existing cache)
+  // Cache new leads (merge with existing cache), skip deleted ones
   newLeads.forEach(lead => {
-    cachedLeads[lead.id] = lead;
+    if(!deletedLeads.includes(lead.id)) {
+      cachedLeads[lead.id] = lead;
+    }
   });
   persistAll();
 
-  // Return all cached leads (including previously cached ones that may have been deleted from Jotform)
-  return Object.values(cachedLeads).map(lead => {
+  // Return all cached leads, excluding deleted ones
+  return Object.values(cachedLeads).filter(lead => !deletedLeads.includes(lead.id)).map(lead => {
     const year = vehicleYears[lead.id] || lead.year;
     const make = vehicleMakes[lead.id] || lead.make;
     const model = vehicleModels[lead.id] || lead.model;
@@ -589,6 +789,7 @@ function deleteLead(id){
   leads=leads.filter(l=>l.id!==id);
   delete statuses[id]; delete offers[id]; delete counterOffers[id]; delete estRetails[id]; delete notes[id];
   delete cachedLeads[id];
+  if(!deletedLeads.includes(id)) deletedLeads.push(id);
   delete vehicleYears[id]; delete vehicleMakes[id]; delete vehicleModels[id]; delete vehicleBadges[id];
   persistAll();
   renderKanban(leads);
@@ -993,8 +1194,64 @@ async function copySms(l){
   }
 }
 
+// --- Directory handle for saving PDFs directly to iCloud ---
+let _savedDirHandle = null;
+
+function openDirHandleDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('crmDirHandleDB', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function storeDirHandle(handle) {
+  const db = await openDirHandleDB();
+  const tx = db.transaction('handles', 'readwrite');
+  tx.objectStore('handles').put(handle, 'saveDir');
+  return new Promise(r => { tx.oncomplete = r; });
+}
+
+async function loadDirHandle() {
+  const db = await openDirHandleDB();
+  const tx = db.transaction('handles', 'readonly');
+  const req = tx.objectStore('handles').get('saveDir');
+  return new Promise(r => { req.onsuccess = () => r(req.result || null); });
+}
+
+async function getSaveDirectory() {
+  // Return cached handle if we already have one this session
+  if (_savedDirHandle) {
+    const perm = await _savedDirHandle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return _savedDirHandle;
+  }
+  // Try loading from IndexedDB
+  const stored = await loadDirHandle();
+  if (stored) {
+    const perm = await stored.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') { _savedDirHandle = stored; return stored; }
+    // Need to re-request permission (requires user gesture, which we have from button click)
+    const req = await stored.requestPermission({ mode: 'readwrite' });
+    if (req === 'granted') { _savedDirHandle = stored; return stored; }
+  }
+  // First time: ask user to pick a folder
+  if (window.showDirectoryPicker) {
+    try {
+      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      await storeDirHandle(handle);
+      _savedDirHandle = handle;
+      return handle;
+    } catch(e) {
+      // User cancelled picker
+      return null;
+    }
+  }
+  return null;
+}
+
 // PDFs with photos and better formatting
-async function generatePdf(l, safe){
+async function generatePdf(l, safe, silent=false){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
 
@@ -1087,26 +1344,7 @@ async function generatePdf(l, safe){
 
   y = sectionStartY + totalHeight + 10;
 
-  // Pricing section - LIGHT BLUE
-  if(offers[l.id] || counterOffers[l.id] || estRetails[l.id]){
-    y += 10; // Add spacing
-    doc.setFillColor(238, 243, 248); // #eef3f8 light blue
-    doc.rect(pad, y, pageWidth - 2*pad, 50, 'F');
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Pricing", pad + 15, y + 20);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-
-    let pricingY = y + 38;
-    const leftCol = pad + 15;
-    if(offers[l.id]) doc.text(`Offer: $${formatPrice(offers[l.id])}`, leftCol, pricingY);
-    if(counterOffers[l.id]) doc.text(`Counter: $${formatPrice(counterOffers[l.id])}`, leftCol + 140, pricingY);
-    if(estRetails[l.id]) doc.text(`Est Retail: $${formatPrice(estRetails[l.id])}`, leftCol + 280, pricingY);
-
-    y += 70;
-  }
+  // Pricing section removed from PDF output
 
   // Comments
   if(l.comments){
@@ -1227,13 +1465,73 @@ async function generatePdf(l, safe){
 
   const filenameBase = (l.car || "lead").replace(/\s+/g," ").trim().slice(0, 60);
   const filename = safe ? `${filenameBase} safe.pdf` : `${filenameBase} full.pdf`;
+
+  // Try to save directly to the chosen iCloud folder via File System Access API
+  try {
+    const dirHandle = await getSaveDirectory();
+    if(dirHandle) {
+      const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      const pdfBlob = doc.output('blob');
+      await writable.write(pdfBlob);
+      await writable.close();
+      if(!silent) alert(`PDF saved to ${filename}`);
+      return;
+    }
+  } catch(e) {
+    console.warn('Direct save failed, falling back to download:', e);
+  }
+  // Fallback to browser download
   doc.save(filename);
 }
 
 (async()=>{
+  // Initialize GitHub sync
+  if (GITHUB_TOKEN) {
+    console.log('🔄 Loading data from GitHub...');
+    await loadFromGitHub();
+
+    // Hide setup button if token exists
+    const setupBtn = document.getElementById('btnGitHubSetup');
+    if (setupBtn) {
+      setupBtn.innerHTML = '<i class="fa-solid fa-sync"></i> Force Sync';
+      setupBtn.onclick = () => {
+        loadFromGitHub().then(() => location.reload());
+      };
+    }
+  } else {
+    updateSyncStatus('error', 'Click "Setup GitHub Sync" to enable cloud storage');
+  }
+
   leads=await fetchLeads();
   renderKanban(leads);
+  // Auto-generate full PDFs to iCloud on load
+  autoSavePdfs();
 })();
+
+async function autoSavePdfs() {
+  try {
+    const dirHandle = await getSaveDirectory();
+    if (!dirHandle) return; // No folder set yet — user needs to generate one manually first
+    let count = 0;
+    for (const lead of leads) {
+      const filenameBase = (lead.car || "lead").replace(/\s+/g, " ").trim().slice(0, 60);
+      const filename = `${filenameBase} full.pdf`;
+      // Check if file already exists and skip if so
+      try {
+        await dirHandle.getFileHandle(filename);
+        continue; // File exists, skip
+      } catch(e) {
+        // File doesn't exist, generate it
+      }
+      await generatePdf(lead, false, true);
+      count++;
+    }
+    if (count > 0) console.log(`Auto-saved ${count} new PDF(s) to iCloud`);
+  } catch(e) {
+    console.warn('Auto-save PDFs skipped:', e.message);
+  }
+}
 </script>
 
 </body>
