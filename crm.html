@@ -433,6 +433,13 @@ async function loadFromGitHub() {
     console.log('✅ Data loaded from GitHub');
     return data.sha; // Return SHA for updates
   } catch (error) {
+    // If 404, file doesn't exist yet - create it with current localStorage data
+    if (error.message.includes('404')) {
+      console.log('📝 crm-data.json not found, creating initial file...');
+      await saveToGitHub();
+      updateSyncStatus('success');
+      return null;
+    }
     console.warn('⚠️ Failed to load from GitHub, using localStorage:', error.message);
     updateSyncStatus('error', error.message);
     return null;
